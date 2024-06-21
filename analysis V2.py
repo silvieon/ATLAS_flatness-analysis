@@ -42,22 +42,23 @@ def browseFiles():
 def confirmAnalysis():
     global file 
     plaintext = ""
-    fileroot = file[0:len(file)-4]
-    if not os.path.isdir(fileroot):
-        os.makedirs(fileroot)
 
     #front-facing error message for showing the operator that they have not yet selected a file
     if file == "":
         label_file_explorer.configure(text="You have not opened a file! Please select a file.")
     else:
         plaintext = readFile(file)
+        fileroot = file[0:len(file)-4]
+        if not os.path.isdir(fileroot):
+            os.makedirs(fileroot)
+        print("path created successfully. ")
     
     #conditional statement. Decides whether the file is a multi-module file (contains the keyword "Plane")...
     #from there either splits the multi-module file into single-module files or analyzes the single-module file. 
     if plaintext.find("Plane   ") > -1: 
-        splitFile(plaintext, file)
+        splitFile(plaintext, fileroot)
     else:
-        analyzeFile(plaintext, file)
+        analyzeFile(plaintext, fileroot)
         file = ""
 
 #this one just does what the name says. its actually that shrimple.
@@ -75,13 +76,19 @@ def readFile(file):
 
 #splits multi-module data file into multiple single-module data files.
 def splitFile(text, fileroot):
-    #uses the filename ("fileroot") to find what to number each single-module file
-    numberindex = fileroot.find("-") - 2
+    #finds filename by reversing the file path and cutting the string off at the first instance of /
+    reversal = fileroot[::-1]
+    nameIndex = reversal.find("/")
+    fileName = reversal[0:nameIndex]
+    fileName = fileName[::-1]
+    
+    #uses the filename to find what to number each single-module file
+    numberindex = fileName.find("-") - 2
     fileNumber = 0
     if not file[numberindex] == "1":
-        fileNumber = int(fileroot[numberindex + 1])
+        fileNumber = int(fileName[numberindex + 1])
     else:
-        fileNumber = int(fileroot[numberindex:numberindex+2])
+        fileNumber = int(fileName[numberindex:numberindex+2])
 
     #the while loop copies into each single-module file the plain text from the multi-module file with bounds: 
     #starting at either the beginning of the file or the first instance of the keyword "point" after any instance of the keyword "plane"
@@ -168,7 +175,7 @@ def removeOutliers(dataframe):
 
     #array of indices at which the "distance from median" value is large and the z-value is below the median. 
     #in effect, an array of outlier indices.
-    removeindices = [i for i in range(len(diffs)) if i > 0.25]
+    removeindices = [i for i in range(len(diffs)) if diffs[i] > 0.25]
 
     #notifies operator of each point deemed an outlier and removed and its associated "distance from median" value.
     for i in removeindices:
@@ -182,12 +189,12 @@ def removeOutliers(dataframe):
     return removed
 
 #its really, unironically that shrimple. 
-def analyzeFile(plaintext, file):
+def analyzeFile(plaintext, fileroot):
     #this bit does what the print statement says it does. The directory stores exports of data analysis. 
     print("making directory...")
-    fileroot = file[0:len(file)-4]
-    if not os.path.isdir(fileroot):
-        os.makedirs(fileroot)
+    #fileroot = file[0:len(file)-4]
+    #if not os.path.isdir(fileroot):
+    #    os.makedirs(fileroot)
 
     #this turns the plain text data into a numpy array of 3-d coordinates. 
     print("getting data...")
@@ -360,7 +367,7 @@ def histogram(data, fileroot):
 
     fig = Figure(figsize=(4,5), dpi=100)
     canvas = FigureCanvasTkAgg(fig, master=root)
-    canvas.get_tk_widget().pack(side=RIGHT, expand= "both")
+    canvas.get_tk_widget().pack(side=RIGHT, expand= "y")
 
     ax=fig.add_subplot(111)
     ax.set_title('Histogram of plane offsets')
