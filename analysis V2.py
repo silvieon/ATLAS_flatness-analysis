@@ -217,7 +217,7 @@ def analyzeFile(plaintext, fileroot):
 
     #Creating two arrays to store the 3d coordinates of the two peak points and any points out of spec.
     peakPoints = np.array([data[0], data[1]])
-    eccentricPoints = np.array([], dtype=float)
+    eccentricPoints = []
 
     #uses another bit of magic from scikit-spatial to determine which, if any, of the "peak" and "out of spec" categories each 3d point belongs in. 
     #again, documentation is here: 
@@ -225,12 +225,12 @@ def analyzeFile(plaintext, fileroot):
     #this bit also changes the "data" array from being a collection of 3d points to being a collection of 
     #   points on the x-y plane and each point's associated offset from the best fit plane. 
     for i in range(len(data)): 
-        point = data[i]
+        point = p[i]
         planeDistance = plane.distance_point_signed(point)
         if abs(planeDistance) >= 75/1000:
             ePoint = data[i]
             ePoint[2] = planeDistance
-            np.append(eccentricPoints, ePoint)
+            eccentricPoints.append(ePoint)
         if planeDistance >= peakPoints[0,2]:
             pPoint = data[i]
             pPoint[2] = planeDistance
@@ -240,6 +240,7 @@ def analyzeFile(plaintext, fileroot):
             pPoint[2] = planeDistance
             peakPoints[1] = pPoint
         data[i, 2] = planeDistance
+    eccentricPoints = np.array(eccentricPoints, dtype=float)
 
     #histogram, heatmap, and residualsPlot are visualization functions that also export the visualization. 
     histogram(data, fileroot)
@@ -271,13 +272,13 @@ def labelConfigure(eccentricPoints):
             dip = True
         if i[2] > 0:
             cap = True
-    truth = dip * 2 + cap
+    truth = int(dip) * 2 + int(cap)
     #encoding goes as follows: 
     #0: neither cap nor dip, 1: cap, 2: dip, 3: both cap and dip
 
     #directory of values used to change the label depending on value of truth
     match truth:
-        case 3:
+        case 3 | 1:
             textOut = "STAVE CORE FAILED."
             bgColor = "orange red"
             fgColor = "black"
@@ -287,11 +288,6 @@ def labelConfigure(eccentricPoints):
             bgColor = "gold"
             fgColor = "black"
             #this corresponds to the B-class stave core notice
-        case 1:
-            textOut = "STAVE CORE FAILED."
-            bgColor = "orange red"
-            fgColor = "black"
-            #this corresponds to the rejection notice
         case 0: 
             textOut = "STAVE CORE PASSED."
             bgColor = "dark green"
@@ -319,7 +315,7 @@ def to_CSV(data, fileroot):
         x_val = data[index, 0]
         z_val = np.round(data[index, 2], 6)
         if z_val > 0.075:
-            z_val = '=HYPERLINK("' + str(z_val) + '")'
+            z_val = 'ERROR: ' + str(z_val)
         if x_val <= temp:
             row += 1
             array.append(nums)
