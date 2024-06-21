@@ -318,6 +318,8 @@ def to_CSV(data, fileroot):
     while index < len(data):
         x_val = data[index, 0]
         z_val = np.round(data[index, 2], 6)
+        if z_val > 0.075:
+            z_val = '=HYPERLINK("' + str(z_val) + '")'
         if x_val <= temp:
             row += 1
             array.append(nums)
