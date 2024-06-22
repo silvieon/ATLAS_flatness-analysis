@@ -106,7 +106,7 @@ def splitFile(text, fileroot):
         index2 = temp.find("Point   ")
         text = temp[index2:len(temp)]
         index = text.find("Plane   ")
-        print("writing to " + fileroot + "/moduleLocation" + str(fileNumber) + ".txt" + "...")
+        print("writing to " + filename + "...")
     #the product of this is multiple single-module files filled with only the data file header, "point" keywords, and associated positional data. 
 
     #outwards-facing notification of the file split being done. 
@@ -115,10 +115,10 @@ def splitFile(text, fileroot):
 
 #turns space-separated proprietary data in text file format into a Pandas dataframe
 def reformatString(text):
-    checker = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "-", "."]
+    checker = ["+", "-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "."]
 
     #searches for numbers. Each number in the proprietary text format bgins with "+" or "-". 
-    res = [i for i in range(len(text)) if text.startswith(checker[10], i) or text.startswith(checker[11], i)]
+    res = [i for i in range(len(text)) if text.startswith(checker[0], i) or text.startswith(checker[1], i)]
     nums = [text[i:i+10] for i in res]
 
     #creates an array filled with the indices of any value that either doesn't have a decimal point in the correct location or contains non-numeric characters. 
