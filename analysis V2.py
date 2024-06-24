@@ -82,12 +82,14 @@ def splitFile(text, fileroot):
     nameIndex = reversal.find("/")
     fileName = reversal[0:nameIndex]
     fileName = fileName[::-1]
+    print(fileName)
     
     #uses the filename to find what to number each single-module file
     numberindex = fileName.find("-") - 2
     fileNumber = 0
-    if not file[numberindex] == "1":
+    if not fileName[numberindex] == "1":
         fileNumber = int(fileName[numberindex + 1])
+        print(fileName[numberindex])
     else:
         fileNumber = int(fileName[numberindex:numberindex+2])
 
@@ -217,10 +219,6 @@ def analyzeFile(plaintext, fileroot):
     p = Points(data)
     plane = Plane.best_fit(p)
 
-    #Creating two arrays to store the 3d coordinates of the two peak points and any points out of spec.
-    peakPoints = np.array([data[0], data[1]])
-    eccentricPoints = []
-
     #uses another bit of magic from scikit-spatial to determine which, if any, of the "peak" and "out of spec" categories each 3d point belongs in. 
     #again, documentation is here: 
     #https://scikit-spatial.readthedocs.io/en/stable/api_reference/Plane/methods/skspatial.objects.Plane.distance_point_signed.html
@@ -229,20 +227,16 @@ def analyzeFile(plaintext, fileroot):
     for i in range(len(data)): 
         point = p[i]
         planeDistance = plane.distance_point_signed(point)
-        if abs(planeDistance) >= 75/1000:
-            ePoint = data[i]
-            ePoint[2] = planeDistance
-            eccentricPoints.append(ePoint)
-        if planeDistance >= peakPoints[0,2]:
-            pPoint = data[i]
-            pPoint[2] = planeDistance
-            peakPoints[0] = pPoint
-        if planeDistance <= peakPoints[1,2]: 
-            pPoint = data[i]
-            pPoint[2] = planeDistance
-            peakPoints[1] = pPoint
         data[i, 2] = planeDistance
-    eccentricPoints = np.array(eccentricPoints, dtype=float)
+
+    #creating arrays to store point info for peaks and points out of spec
+    peakPoints = [i for i in data if i[2] == max(data[:,2]) or i[2] == min(data[:,2])]
+    eccentricPoints = [i for i in data if abs(i[2]) >= 75/1000]
+
+    peakPoints = np.array(peakPoints)
+    eccentricPoints = np.array(eccentricPoints)
+    print(peakPoints)
+    print(eccentricPoints)
 
     #histogram, heatmap, and residualsPlot are visualization functions that also export the visualization. 
     histogram(data, fileroot)
@@ -250,7 +244,7 @@ def analyzeFile(plaintext, fileroot):
     residualsPlot(data, eccentricPoints, peakPoints, fileroot)
 
     #to_CSV and text_label are export-only functions that generate files making it easier to compare and summarize the data.
-    to_CSV(data, fileroot)
+    to_CSV_recursive(data, fileroot)
     text_label(data, peakPoints, fileroot)
 
     #labelConfigure alters the GUI label based on inputted data to quickly see if the stave core is usable at a glance.
@@ -302,7 +296,7 @@ def labelConfigure(eccentricPoints):
     print("label configuration done.")
 
 #changes the 3-column table of x,y,z data into a 10x10 (most of the time) grid of z-values ordered by x and y values. 
-def to_CSVdeprecated(data, fileroot):
+def to_CSV_whileLoop(data, fileroot):
     file = fileroot + "/offsets.csv"
 
     temp = -1000
@@ -334,13 +328,15 @@ def to_CSVdeprecated(data, fileroot):
     print("CSV data holds " + str(len(data)) + " points. ")
     print("CSV data saved to " + file + "\nnext...")
 
-def to_CSV(data, fileroot):
+#this does the same thing as to_CSV_whileLoop but using recursive functions. IMO the while loop version is a bit more elegant. 
+def to_CSV_recursive(data, fileroot):
     file = fileroot + "/offsets.csv"
 
     array = []
     y_vals = data[:,1]
     z_vals = data[:,2]
     array = rowify(y_vals, z_vals, array)
+    np.transpose(array)
 
     #converting the grid into saveable file format.
     csv = pd.DataFrame(array)
@@ -351,12 +347,12 @@ def to_CSV(data, fileroot):
     print("CSV data saved to " + file + "\nnext...")
 
 def rowify(y_vals, z_vals, array):
-    if max(y_vals) == y_vals[len(y_vals)-1]:
+    if min(y_vals) == y_vals[len(y_vals)-1]:
         array.append(z_vals)
         return array
     row = []
-    temp, index = -1000, 0
-    while abs(y_vals[index]) > temp:
+    temp, index = 1000, 0
+    while y_vals[index] < temp:
         z_val = round(z_vals[index], 6)
         if abs(z_val) > 75/1000:
             z_val = 'ERROR: ' + str(z_val)
