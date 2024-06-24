@@ -248,6 +248,9 @@ def analyzeFile(plaintext, fileroot):
     text_label(data, peakPoints, fileroot)
 
     #labelConfigure alters the GUI label based on inputted data to quickly see if the stave core is usable at a glance.
+    defect = defect.get()
+    if defect:
+        labelConfigure_defect(data)
     labelConfigure(eccentricPoints)
 
     #outward-facing notifications that allow operator to see that analysis is done and to know where to look for exported files. 
@@ -256,10 +259,6 @@ def analyzeFile(plaintext, fileroot):
 
 #changes the label in the middle of the GUI to show through both words and color whether the stave has passed, failed, or needs retesting.
 def labelConfigure(eccentricPoints):
-    textOut = "Waiting for stave core data..."
-    bgColor = root.cget('bg')
-    fgColor = "black"
-
     #encoding the state of the output in a truth value
     cap = False
     dip = False
@@ -294,6 +293,39 @@ def labelConfigure(eccentricPoints):
     label_goodness.configure(text=textOut, bg = bgColor, fg = fgColor)
 
     print("label configuration done.")
+
+def labelConfigure_defect(data):
+    fail = False
+
+    basePoint = 0
+    for i in data: 
+        if i[0] == 0 and i[1] == 0:
+            basePoint = i
+    pointsUnder = [i for i in data if i[2] < basePoint[2]]
+
+    for i in pointsUnder:
+        count = 0
+        tail = [i[0], i[1]]
+        for j in pointsUnder:
+            head = [j[0], j[1]]
+            distance = np.linalg.norm(tail - head)
+            if 0 < abs(distance) < 2:
+                count += 1
+        if count >= 3:
+            fail = True
+
+    if fail:
+        textOut = "STAVE CORE FAILED."
+        bgColor = "orange red"
+        fgColor = "black"
+        #this corresponds to the rejection notice
+    else:
+        textOut = "B-CLASS STAVE CORE."
+        bgColor = "gold"
+        fgColor = "black"
+        #this corresponds to the B-class stave core notice
+        
+    label_goodness.configure(text=textOut, bg = bgColor, fg = fgColor)
 
 #changes the 3-column table of x,y,z data into a 10x10 (most of the time) grid of z-values ordered by x and y values. 
 def to_CSV_whileLoop(data, fileroot):
@@ -558,6 +590,7 @@ root = Tk()
 
 #boolean variable, controlled by checkbox, that controls whether the outliers are removed or not in analyzeFile()
 outlierSense = BooleanVar(value=True)
+defect = BooleanVar(value=False)
 
 #defining default state for all GUI elements (besides figures)
 root.title("Local Flatness Analyzer")
@@ -566,7 +599,8 @@ label_space = Label(root, height=1)
 label_goodness = Label(root, bd= 3, padx= 2, relief=SUNKEN, text = "Waiting for stave core data...", bg = root.cget('bg'), fg = "black", height= 2) 
 
 button_explore = Button(root, text = "Browse Files", command = browseFiles, width=10, height=1, cursor= "hand2")
-button_outliers = Checkbutton(root, text = "Remove Outliers", variable = outlierSense, height = 2, width = 12) 
+button_outliers = Checkbutton(root, text = "Remove Outliers", variable = outlierSense, height = 2, width = 12)
+button_defect = Checkbutton(root, text = "Defect matrix?", variable = defect, height = 2, width = 12)  
 button_analyze = Button(master = root, command = confirmAnalysis, text = "Analyze", width=10, height=1, cursor= "hand2")
 button_reset = Button(master = root, relief=SUNKEN, command = NONE, text = "New Analysis", width=10, height=1, cursor= "hand2")
 button_exit = Button(root, text = "Exit", command = exit, width=10, height=1, cursor= "hand2")
@@ -576,6 +610,7 @@ label_file_explorer.pack(side=TOP)
 
 button_explore.pack(side=TOP)
 button_outliers.pack(side=TOP)
+button_defect.pack(side=TOP)
 button_analyze.pack(side=TOP)
 button_reset.pack(side=TOP)
 button_exit.pack(side=TOP)
