@@ -131,6 +131,7 @@ def reformatString(text):
         for j in range(len(num)):
             if not num[j] in checker or not num[4:5] == ".":
                 toRemove.append(i)
+                print(num)
     
     #removes all the thingies at the indices of incorrectly formatted values
     for i in sorted(toRemove, reverse=True):
@@ -145,11 +146,12 @@ def reformatString(text):
     #this bit removes the 5 points at the beginning of every routine that are really close to the origin. 
     #also outputs a notification for these points being removed. 
     removeIndices = [i for i in range(len(numsMod1)) if abs(float(numsMod1[i])) < 0.001]
-    for i in sorted(removeIndices, reverse=True):
-        del numsMod0[i]
-        del numsMod1[i]
-        del numsMod2[i]
-        print("removed a bad point -- plane location out of range")
+    if not defect.get():
+        for i in sorted(removeIndices, reverse=True):
+            del numsMod0[i]
+            del numsMod1[i]
+            del numsMod2[i]
+            print("removed a bad point -- plane location out of range")
 
     #this bit throws an error and exits the function if there is an unequal number of x,y,z values. 
     if not len(numsMod0) == len(numsMod1) == len(numsMod2):
@@ -235,8 +237,8 @@ def analyzeFile(plaintext, fileroot):
 
     peakPoints = np.array(peakPoints)
     eccentricPoints = np.array(eccentricPoints)
-    print(peakPoints)
-    print(eccentricPoints)
+    #print(peakPoints)
+    #print(eccentricPoints)
 
     #histogram, heatmap, and residualsPlot are visualization functions that also export the visualization. 
     histogram(data, fileroot)
@@ -248,10 +250,10 @@ def analyzeFile(plaintext, fileroot):
     text_label(data, peakPoints, fileroot)
 
     #labelConfigure alters the GUI label based on inputted data to quickly see if the stave core is usable at a glance.
-    defect = defect.get()
-    if defect:
+    if defect.get():
         labelConfigure_defect(data)
-    labelConfigure(eccentricPoints)
+    else:
+        labelConfigure(eccentricPoints)
 
     #outward-facing notifications that allow operator to see that analysis is done and to know where to look for exported files. 
     label_file_explorer.configure(text="Saved figures to folder: "+ fileroot)
@@ -297,17 +299,18 @@ def labelConfigure(eccentricPoints):
 def labelConfigure_defect(data):
     fail = False
 
-    basePoint = 0
+    basePoint = []
     for i in data: 
-        if i[0] == 0 and i[1] == 0:
+        if abs(i[0]) < 0.001 and abs(i[1]) < 0.001:
             basePoint = i
+            #print(basePoint)
     pointsUnder = [i for i in data if i[2] < basePoint[2]]
 
     for i in pointsUnder:
         count = 0
-        tail = [i[0], i[1]]
+        tail = np.array([i[0], i[1]])
         for j in pointsUnder:
-            head = [j[0], j[1]]
+            head = np.array([j[0], j[1]])
             distance = np.linalg.norm(tail - head)
             if 0 < abs(distance) < 2:
                 count += 1
@@ -326,6 +329,8 @@ def labelConfigure_defect(data):
         #this corresponds to the B-class stave core notice
         
     label_goodness.configure(text=textOut, bg = bgColor, fg = fgColor)
+
+    print("label configuration done.")
 
 #changes the 3-column table of x,y,z data into a 10x10 (most of the time) grid of z-values ordered by x and y values. 
 def to_CSV_whileLoop(data, fileroot):
