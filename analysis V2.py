@@ -48,6 +48,7 @@ def confirmAnalysis():
         label_file_explorer.configure(text="You have not opened a file! Please select a file.")
     else:
         plaintext = readFile(file)
+        print('creating path...')
         fileroot = file[0:len(file)-4]
         if not os.path.isdir(fileroot):
             os.makedirs(fileroot)
@@ -191,10 +192,11 @@ def removeOutliers(dataframe):
 #its really, unironically that shrimple. 
 def analyzeFile(plaintext, fileroot):
     #this bit does what the print statement says it does. The directory stores exports of data analysis. 
-    print("making directory...")
+    #print("making directory...")
     #fileroot = file[0:len(file)-4]
     #if not os.path.isdir(fileroot):
     #    os.makedirs(fileroot)
+    #superceded by copy of code in "confirmAnalysis" method. 
 
     #this turns the plain text data into a numpy array of 3-d coordinates. 
     print("getting data...")
@@ -300,11 +302,11 @@ def labelConfigure(eccentricPoints):
     print("label configuration done.")
 
 #changes the 3-column table of x,y,z data into a 10x10 (most of the time) grid of z-values ordered by x and y values. 
-def to_CSV(data, fileroot):
+def to_CSVdeprecated(data, fileroot):
     file = fileroot + "/offsets.csv"
 
     temp = -1000
-    index, row = 0, 0
+    index = 0
     array, nums = [], []
 
     #continually adds z-values to nums as each corresponding x-value grows. 
@@ -317,7 +319,6 @@ def to_CSV(data, fileroot):
         if abs(z_val) > 0.075:
             z_val = 'ERROR: ' + str(z_val)
         if x_val <= temp:
-            row += 1
             array.append(nums)
             nums = []
         nums.append(z_val)
@@ -332,6 +333,41 @@ def to_CSV(data, fileroot):
     #outwards notifications of the method finishing
     print("CSV data holds " + str(len(data)) + " points. ")
     print("CSV data saved to " + file + "\nnext...")
+
+def to_CSV(data, fileroot):
+    file = fileroot + "/offsets.csv"
+
+    array = []
+    y_vals = data[:,1]
+    z_vals = data[:,2]
+    array = rowify(y_vals, z_vals, array)
+
+    #converting the grid into saveable file format.
+    csv = pd.DataFrame(array)
+    csv.to_csv(file)
+
+    #outwards notifications of the method finishing
+    print("CSV data holds " + str(len(data)) + " points. ")
+    print("CSV data saved to " + file + "\nnext...")
+
+def rowify(y_vals, z_vals, array):
+    if max(y_vals) == y_vals[len(y_vals)-1]:
+        array.append(z_vals)
+        return array
+    row = []
+    temp, index = -1000, 0
+    while abs(y_vals[index]) > temp:
+        z_val = round(z_vals[index], 6)
+        if abs(z_val) > 75/1000:
+            z_val = 'ERROR: ' + str(z_val)
+        row.append(z_val)
+        temp = abs(y_vals[index])
+        index += 1
+    array.append(row)
+    rem_y = np.delete(y_vals, range(0,index))
+    rem_z = np.delete(z_vals, range(0,index))
+    array = rowify(rem_y, rem_z, array)
+    return array
 
 #creates a .txt file containing values useful for an overview of the stave.
 def text_label(data, peakPoints, fileroot):
