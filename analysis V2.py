@@ -304,7 +304,7 @@ def labelConfigure_defect(data):
         if abs(i[0]) < 0.001 and abs(i[1]) < 0.001:
             basePoint = i
             #print(basePoint)
-    pointsUnder = [i for i in data if i[2] < basePoint[2]]
+    pointsUnder = [i for i in data if i[2] <= basePoint[2]]
 
     for i in pointsUnder:
         count = 0
@@ -312,9 +312,10 @@ def labelConfigure_defect(data):
         for j in pointsUnder:
             head = np.array([j[0], j[1]])
             distance = np.linalg.norm(tail - head)
-            if 0 < abs(distance) < 2:
+            if 0 < abs(distance) <= 2:
                 count += 1
-        if count >= 3:
+        print("x: " + str(i[0]) + ". y: " + str(i[1]) + ". out-of-spec adjacent/identity point count : "  + str(count))
+        if count >= 8:
             fail = True
 
     if fail:
