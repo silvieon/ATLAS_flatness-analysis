@@ -167,7 +167,7 @@ def reformatString(text):
     return df
 
 #using x,y,z positional data, this function removes anything that is unreasonably below the median z-value of the distribution of points.
-def removeOutliers(dataframe):
+def minimumZ_val(dataframe):
     #notification of function activation
     print("removing outliers...")
 
@@ -208,8 +208,8 @@ def analyzeFile(plaintext, fileroot):
 
         #if the "remove outliers" box is checked, the data will be scanned for outliers and the outlier points will be removed. 
         #the exact process is of questionable validity, but it works. 
-    if outlierSense.get():
-        data = removeOutliers(data)
+    if zMinimum.get():
+        data = minimumZ_val(data)
     data = data.to_numpy(dtype=float)
 
     #the code will then analyze the 3-d coordinates through sorting, visualization, and exporting.
@@ -232,10 +232,11 @@ def analyzeFile(plaintext, fileroot):
         data[i, 2] = planeDistance
 
     #creating arrays to store point info for peaks and points out of spec
-    peakPoints = [i for i in data if i[2] == max(data[:,2]) or i[2] == min(data[:,2])]
+    maxPoint = [i for i in data if i[2] == max(data[:,2])]
+    minPoint = [i for i in data if i[2] == max(data[:,2])]
     eccentricPoints = [i for i in data if abs(i[2]) >= 75/1000]
 
-    peakPoints = np.array(peakPoints)
+    peakPoints = np.array([maxPoint, minPoint])
     eccentricPoints = np.array(eccentricPoints)
     #print(peakPoints)
     #print(eccentricPoints)
@@ -595,7 +596,7 @@ def reset():
 root = Tk()
 
 #boolean variable, controlled by checkbox, that controls whether the outliers are removed or not in analyzeFile()
-outlierSense = BooleanVar(value=True)
+zMinimum = BooleanVar(value=True)
 defect = BooleanVar(value=False)
 
 #defining default state for all GUI elements (besides figures)
@@ -605,7 +606,7 @@ label_space = Label(root, height=1)
 label_goodness = Label(root, bd= 3, padx= 2, relief=SUNKEN, text = "Waiting for stave core data...", bg = root.cget('bg'), fg = "black", height= 2) 
 
 button_explore = Button(root, text = "Browse Files", command = browseFiles, width=10, height=1, cursor= "hand2")
-button_outliers = Checkbutton(root, text = "Remove Outliers", variable = outlierSense, height = 2, width = 12)
+button_outliers = Checkbutton(root, text = "Enforce Z-Min", variable = zMinimum, height = 2, width = 12)
 button_defect = Checkbutton(root, text = "Defect matrix?", variable = defect, height = 2, width = 12)  
 button_analyze = Button(master = root, command = confirmAnalysis, text = "Analyze", width=10, height=1, cursor= "hand2")
 button_reset = Button(master = root, relief=SUNKEN, command = NONE, text = "New Analysis", width=10, height=1, cursor= "hand2")
