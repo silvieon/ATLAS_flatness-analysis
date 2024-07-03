@@ -219,7 +219,21 @@ def analyzeFile(plaintext, fileroot):
     #it uses single value decomposition? I think. the documentation is here: 
     #https://scikit-spatial.readthedocs.io/en/stable/api_reference/Plane/methods/skspatial.objects.Plane.best_fit.html
     p = Points(data)
-    plane = Plane.best_fit(p)
+    if defect.get():
+        basePoint = []
+        for i in data:
+            if abs(i[0]) < 0.001 and abs(i[1]) < 0.001:
+                basePoint = i
+        if basePoint == []:
+            print("Central point error! Please make sure that you are inputting defect matrix data. ")
+            exit()
+        vec = ''.join(c for c in norm.get() if c.isdigit() or c==' ' or c=='.' or c=='e' or c=='-' or c=="+")
+        vector = vec.split()
+        vector = [float(i) for i in vector]
+        plane = Plane(point = basePoint, normal=vector)
+    else:
+        plane = Plane.best_fit(p)
+    print(plane)
 
     #uses another bit of magic from scikit-spatial to determine which, if any, of the "peak" and "out of spec" categories each 3d point belongs in. 
     #again, documentation is here: 
@@ -246,7 +260,7 @@ def analyzeFile(plaintext, fileroot):
     residualsPlot(data, eccentricPoints, peakPoints, fileroot)
 
     #to_CSV and text_label are export-only functions that generate files making it easier to compare and summarize the data.
-    to_CSV_recursive(data, fileroot)
+    to_CSV_whileLoop(data, fileroot)
     text_label(data, peakPoints, fileroot)
 
     #labelConfigure alters the GUI label based on inputted data to quickly see if the stave core is usable at a glance.
@@ -433,8 +447,8 @@ def histogram(data, fileroot):
     file = fileroot + "/histogram.png"
 
     fig = Figure(figsize=(4,5), dpi=100)
-    canvas = FigureCanvasTkAgg(fig, master=root)
-    canvas.get_tk_widget().pack(side=RIGHT, expand= "y")
+    canvas = FigureCanvasTkAgg(fig, master=frame_results)
+    canvas.get_tk_widget().grid(column=2, row=1)
 
     ax=fig.add_subplot(111)
     ax.set_title('Histogram of plane offsets')
@@ -461,8 +475,8 @@ def heatmap(data, ePoints, pPoints, fileroot):
 
     fig = Figure(figsize=(4,5))
     ax=fig.add_subplot(111)
-    canvas = FigureCanvasTkAgg(fig, master = root)   
-    canvas.get_tk_widget().pack(side=LEFT, expand= "y")
+    canvas = FigureCanvasTkAgg(fig, master = frame_results)   
+    canvas.get_tk_widget().grid(column=0, row=1)
 
     #creating a logarithmic coloring and associated colorbar
     cmap = plt.colormaps["coolwarm"]
@@ -523,8 +537,10 @@ def residualsPlot(data, ePoints, pPoints, fileroot):
     
     fig = plt.figure(figsize=(5,4))
     ax = fig.add_subplot(111, projection='3d')
-    canvas = FigureCanvasTkAgg(fig, master = root)
-    canvas.get_tk_widget().pack(side=TOP, expand= False)
+    frame_scatter = Frame(frame_results)
+    frame_scatter.grid(column=1, row=1)
+    canvas = FigureCanvasTkAgg(fig, master = frame_scatter)
+    canvas.get_tk_widget().pack(side=TOP)
     
     #logarithmic coloration
     cmap = plt.colormaps["coolwarm"]
@@ -536,9 +552,9 @@ def residualsPlot(data, ePoints, pPoints, fileroot):
     ax.set_zlabel("best-fit plane offset")
 
     #toolbar for mouse-exploring through the 3d plot
-    toolbar = NavigationToolbar2Tk(canvas, root)
+    toolbar = NavigationToolbar2Tk(canvas, frame_scatter)
     toolbar.update()
-    toolbar.pack(side=TOP, expand= False)
+    toolbar.pack(side=TOP)
 
     #setting x,y,z values
     x_list = data[:,0]
@@ -580,14 +596,14 @@ def scatter(points, ax, z_scale=1, color='k', label=None, spatial=False):
 #re-initializes the GUI and returns all elements to their starting states. 
 def reset():
     global file
-    for widget in root.winfo_children():
-        if isinstance(widget, Canvas) or isinstance(widget, NavigationToolbar2Tk):
-            widget.destroy()
+    for widget in frame_results.winfo_children():
+        widget.destroy()
     label_file_explorer.configure(text="Local Flatness Analyzer")
     label_goodness.configure(text = "Waiting for stave core data...", bg = root.cget('bg'), fg = "black")
     button_analyze.configure(relief=RAISED, command=confirmAnalysis)
     button_explore.configure(relief=RAISED, command=browseFiles)
     button_reset.configure(relief=SUNKEN, command=NONE)
+    entry_plane.delete(0, range(len(norm.get())))
     file = ""
 
 #necessary for TKinter to work
@@ -596,32 +612,51 @@ root = Tk()
 #boolean variable, controlled by checkbox, that controls whether the outliers are removed or not in analyzeFile()
 outlierSense = BooleanVar(value=True)
 defect = BooleanVar(value=False)
+norm = StringVar()
 
 #defining default state for all GUI elements (besides figures)
 root.title("Local Flatness Analyzer")
+
+frame_control = LabelFrame(root, text="control")
+frame_analyze = LabelFrame(root, text="tools")
+frame_results = LabelFrame(root, text = "results")
+
 label_file_explorer = Label(root, text = "Local Flatness Analyzer", width = 100, height = 4, fg = "blue") 
 label_space = Label(root, height=1) 
-label_goodness = Label(root, bd= 3, padx= 2, relief=SUNKEN, text = "Waiting for stave core data...", bg = root.cget('bg'), fg = "black", height= 2) 
+label_goodness = Label(frame_results, bd= 3, padx= 2, relief=SUNKEN, text = "Waiting for stave core data...", bg = root.cget('bg'), fg = "black", height= 2) 
 
-button_explore = Button(root, text = "Browse Files", command = browseFiles, width=10, height=1, cursor= "hand2")
-button_outliers = Checkbutton(root, text = "Remove Outliers", variable = outlierSense, height = 2, width = 12)
-button_defect = Checkbutton(root, text = "Defect matrix?", variable = defect, height = 2, width = 12)  
-button_analyze = Button(master = root, command = confirmAnalysis, text = "Analyze", width=10, height=1, cursor= "hand2")
-button_reset = Button(master = root, relief=SUNKEN, command = NONE, text = "New Analysis", width=10, height=1, cursor= "hand2")
-button_exit = Button(root, text = "Exit", command = exit, width=10, height=1, cursor= "hand2")
+button_explore = Button(frame_control, text = "Browse Files", command = browseFiles, width=10, height=1, cursor= "hand2")
+button_outliers = Checkbutton(frame_analyze, text = "Remove Outliers", variable = outlierSense, height = 2, width = 12)
+button_defect = Checkbutton(frame_analyze, text = "Defect matrix?", variable = defect, height = 2, width = 12)  
+button_analyze = Button(master = root, command = confirmAnalysis, text = "Analyze", width=20, height=7, cursor= "hand2", bg="dark green", fg="light grey")
+button_reset = Button(frame_control, relief=SUNKEN, command = NONE, text = "Reset", width=10, height=1, cursor= "hand2")
+button_exit = Button(frame_control, text = "Exit", command = exit, width=10, height=1, cursor= "hand2")
+entry_plane = Entry(frame_analyze, textvariable = norm, width = 20)
+label_plane = Label(frame_analyze, text = "Norm. Vec. of Fit Plane")
 
 #spacing for all GUI elements
-label_file_explorer.pack(side=TOP)
+weights = [2,1,1,1,1,1,2]
+rootColumns = 7
+for i in range(0,rootColumns):
+    root.columnconfigure(weight=weights[i], index=i)
+for i in range(1,6):
+    frame_results.columnconfigure(weight=weights[i], index=i)
 
+label_file_explorer.grid(column=4, row=0, sticky=N)
+frame_results.grid(column=0, row=2, columnspan=rootColumns, sticky=N)
+frame_control.grid(column=2, row=1, sticky=N)
+frame_analyze.grid(column=4, row=1, sticky=N)
+button_analyze.grid(column=5,row=1, sticky=NW)
+
+button_outliers.grid(column=0, row=1, sticky=W)
+button_defect.grid(column=0, row=0, sticky=W)
+label_plane.grid(column=1, row=0)
+entry_plane.grid(column=1, row=1, padx=[10,10])
 button_explore.pack(side=TOP)
-button_outliers.pack(side=TOP)
-button_defect.pack(side=TOP)
-button_analyze.pack(side=TOP)
 button_reset.pack(side=TOP)
 button_exit.pack(side=TOP)
 
-label_space.pack(side=TOP)
-label_goodness.pack(side=TOP)
+label_goodness.grid(row=0, column=1)
 
 label_goodness.update()
 root.mainloop()
