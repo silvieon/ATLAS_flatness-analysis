@@ -657,7 +657,6 @@ entry_plane.grid(column=1, row=1, padx=[10,10])
 button_explore.pack(side=TOP)
 button_reset.pack(side=TOP)
 button_exit.pack(side=TOP)
-
 label_goodness.grid(row=0, column=1)
 
 label_goodness.update()
