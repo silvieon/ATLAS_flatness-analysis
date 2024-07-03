@@ -247,10 +247,10 @@ def analyzeFile(plaintext, fileroot):
 
     #creating arrays to store point info for peaks and points out of spec
     maxPoint = [i for i in data if i[2] == max(data[:,2])]
-    minPoint = [i for i in data if i[2] == max(data[:,2])]
+    minPoint = [i for i in data if i[2] == min(data[:,2])]
     eccentricPoints = [i for i in data if abs(i[2]) >= 75/1000]
 
-    peakPoints = np.array([maxPoint, minPoint])
+    peakPoints = np.array([maxPoint[0], minPoint[0]])
     eccentricPoints = np.array(eccentricPoints)
     #print(peakPoints)
     #print(eccentricPoints)
@@ -262,7 +262,7 @@ def analyzeFile(plaintext, fileroot):
 
     #to_CSV and text_label are export-only functions that generate files making it easier to compare and summarize the data.
     to_CSV_whileLoop(data, fileroot)
-    text_label(data, peakPoints, fileroot)
+    text_label(data, plane, peakPoints, fileroot)
 
     #labelConfigure alters the GUI label based on inputted data to quickly see if the stave core is usable at a glance.
     if defect.get():
@@ -419,7 +419,7 @@ def rowify(y_vals, z_vals, array):
     return array
 
 #creates a .txt file containing values useful for an overview of the stave.
-def text_label(data, peakPoints, fileroot):
+def text_label(data, plane, peakPoints, fileroot):
     file = fileroot + "/overview.txt"
 
     z_list = data[:,2]
@@ -432,9 +432,10 @@ def text_label(data, peakPoints, fileroot):
     #the peak-to-peak distance of the distribution of plane-offsets.
     ptp = abs(max_z - min_z)
     text = "OVERVIEW. \nSTDEV: " + str(
-        stdev) + " microns. MAX OFFSET: " + str(
+        stdev) + " microns. \nMAX OFFSET: " + str(
             max_z) + " microns. MIN OFFSET: " + str(
-                min_z) + " microns. PEAK TO PEAK DISTANCE: " + str(ptp)
+                min_z) + " microns. \nPEAK TO PEAK DISTANCE: " + str(
+                    ptp) + ". \nFIT PLANE: " + str(plane)
 
     #statement that writes the data to a file
     f = open(file, "w")
@@ -513,6 +514,8 @@ def heatmap(data, ePoints, pPoints, fileroot):
     if len(ePoints) > 0:
         scatter(ePoints, ax, color='red', label="eccentricities")
 
+    print(pPoints)
+
     scatter(pPoints, ax, color='orange', label="peaks")
 
     #this bit creates text labels notating the height of both max and min points
@@ -585,6 +588,7 @@ def residualsPlot(data, ePoints, pPoints, fileroot):
 
 #scatter-plotting method called from within histogram() and residualsPlot() to plot peak, fail points. 
 def scatter(points, ax, z_scale=1, color='k', label=None, spatial=False):
+    print(points)
     x_list = points[:,0]
     y_list = points[:,1]
 
