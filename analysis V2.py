@@ -82,14 +82,14 @@ def splitFile(text, fileroot):
     nameIndex = reversal.find("/")
     fileName = reversal[0:nameIndex]
     fileName = fileName[::-1]
-    print(fileName)
+    #print(fileName)
     
     #uses the filename to find what to number each single-module file
     numberindex = fileName.find("-") - 2
     fileNumber = 0
     if not fileName[numberindex] == "1":
         fileNumber = int(fileName[numberindex + 1])
-        print(fileName[numberindex])
+        #print(fileName[numberindex])
     else:
         fileNumber = int(fileName[numberindex:numberindex+2])
 
@@ -131,7 +131,7 @@ def reformatString(text):
         for j in range(len(num)):
             if not num[j] in checker or not num[4:5] == ".":
                 toRemove.append(i)
-                print(num)
+                #print(num)
     
     #removes all the thingies at the indices of incorrectly formatted values
     for i in sorted(toRemove, reverse=True):
@@ -221,10 +221,12 @@ def analyzeFile(plaintext, fileroot):
     p = Points(data)
     if defect.get():
         basePoint = []
+        checker = False
         for i in data:
             if abs(i[0]) < 0.001 and abs(i[1]) < 0.001:
                 basePoint = i
-        if basePoint == []:
+                checker = True
+        if checker == False:
             print("Central point error! Please make sure that you are inputting defect matrix data. ")
             exit()
         vec = ''.join(c for c in norm.get() if c.isdigit() or c==' ' or c=='.' or c=='e' or c=='-' or c=="+")
@@ -233,7 +235,7 @@ def analyzeFile(plaintext, fileroot):
         plane = Plane(point = basePoint, normal=vector)
     else:
         plane = Plane.best_fit(p)
-    print(plane)
+    #print(plane)
 
     #uses another bit of magic from scikit-spatial to determine which, if any, of the "peak" and "out of spec" categories each 3d point belongs in. 
     #again, documentation is here: 
@@ -514,7 +516,7 @@ def heatmap(data, ePoints, pPoints, fileroot):
     if len(ePoints) > 0:
         scatter(ePoints, ax, color='red', label="eccentricities")
 
-    print(pPoints)
+    #print(pPoints)
 
     scatter(pPoints, ax, color='orange', label="peaks")
 
@@ -588,7 +590,7 @@ def residualsPlot(data, ePoints, pPoints, fileroot):
 
 #scatter-plotting method called from within histogram() and residualsPlot() to plot peak, fail points. 
 def scatter(points, ax, z_scale=1, color='k', label=None, spatial=False):
-    print(points)
+    #print(points)
     x_list = points[:,0]
     y_list = points[:,1]
 
@@ -603,7 +605,8 @@ def scatter(points, ax, z_scale=1, color='k', label=None, spatial=False):
 def reset():
     global file
     for widget in frame_results.winfo_children():
-        widget.destroy()
+        if not type(widget) == Label:
+            widget.destroy()
     label_file_explorer.configure(text="Local Flatness Analyzer")
     label_goodness.configure(text = "Waiting for stave core data...", bg = root.cget('bg'), fg = "black")
     button_analyze.configure(relief=RAISED, command=confirmAnalysis)
