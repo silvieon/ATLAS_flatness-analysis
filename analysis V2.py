@@ -9,6 +9,8 @@ from skspatial.objects import Points, Plane
 from matplotlib.figure import Figure 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib import cm, colors
+import re
+from itertools import compress
 
 #variable to immediately store filepath of currently open file
 global file
@@ -27,10 +29,7 @@ def browseFiles():
     file = filedialog.askopenfilename(initialdir = dirmemory, title = "Select a File", filetypes = (("Text files","*.txt*"),("all files","*.*")))
     
     #this is all to set the value of the file directory with a variable file name length
-    filerev = file[::-1]
-    index = filerev.find("/")
-    filerev = filerev[index:len(filerev)]
-    dirmemory = filerev[::-1]
+    dirmemory = os.path.dirname(file)
 
     #notification of action
     print("File explorer is open at location: " + dirmemory)
@@ -77,11 +76,7 @@ def readFile(file):
 
 #splits multi-module data file into multiple single-module data files.
 def splitFile(text, fileroot):
-    #finds filename by reversing the file path and cutting the string off at the first instance of /
-    reversal = fileroot[::-1]
-    nameIndex = reversal.find("/")
-    fileName = reversal[0:nameIndex]
-    fileName = fileName[::-1]
+    fileName = os.path.basename(fileroot)
     #print(fileName)
     
     #uses the filename to find what to number each single-module file
@@ -118,24 +113,12 @@ def splitFile(text, fileroot):
 
 #turns space-separated proprietary data in text file format into a Pandas dataframe
 def reformatString(text):
-    checker = ["+", "-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "."]
-
     #searches for numbers. Each number in the proprietary text format bgins with "+" or "-". 
-    res = [i for i in range(len(text)) if text.startswith(checker[0], i) or text.startswith(checker[1], i)]
-    nums = [text[i:i+10] for i in res]
+    nums = [text[i:i+10] for i in range(len(text)) if text.startswith("+", i) or text.startswith("-", i)]
 
-    #creates an array filled with the indices of any value that either doesn't have a decimal point in the correct location or contains non-numeric characters. 
-    toRemove = []
-    for i in range(len(nums)):
-        num = nums[i]
-        for j in range(len(num)):
-            if not num[j] in checker or not num[4:5] == ".":
-                toRemove.append(i)
-                #print(num)
-    
-    #removes all the thingies at the indices of incorrectly formatted values
-    for i in sorted(toRemove, reverse=True):
-        del nums[i]
+    mask = [i[4:5]=="." and re.sub("[-+.]", "", i).isnumeric() for i in nums]
+
+    nums = list(compress(nums, mask))
 
     #this bit separates the whole list of numbers into three lists of x,y,z values. 
     #since the original list goes down the line of the starting text format, we can know that the list of numbers goes in order: x,y,z,x,y,z,...
@@ -145,13 +128,11 @@ def reformatString(text):
 
     #this bit removes the 5 points at the beginning of every routine that are really close to the origin. 
     #also outputs a notification for these points being removed. 
-    removeIndices = [i for i in range(len(numsMod1)) if abs(float(numsMod1[i])) < 0.001]
+    removeIndices = [not abs(float(i)) < 0.001 for i in numsMod1]
     if not defect.get():
-        for i in sorted(removeIndices, reverse=True):
-            del numsMod0[i]
-            del numsMod1[i]
-            del numsMod2[i]
-            print("removed a bad point -- plane location out of range")
+        numsMod0 = list(compress(numsMod0, removeIndices))
+        numsMod1 = list(compress(numsMod1, removeIndices))
+        numsMod2 = list(compress(numsMod2, removeIndices))
 
     #this bit throws an error and exits the function if there is an unequal number of x,y,z values. 
     if not len(numsMod0) == len(numsMod1) == len(numsMod2):
@@ -175,22 +156,19 @@ def minimumZ_val(dataframe):
     z_vals = np.array(dataframe.iloc[:,2], dtype=float)
     z_med = np.median(z_vals)
 
-    #creates an array populated with "distance from median" values for each point, still with corresponding indices.
-    diffs = [z_med - i for i in z_vals]
-
     #array of indices at which the "distance from median" value is large and the z-value is below the median. 
     #in effect, an array of outlier indices.
-    removeindices = [i for i in range(len(diffs)) if diffs[i] > 0.25]
+    mask = [i for i in range(len(z_vals)) if abs(z_med - z_vals[i]) > 0.25]
 
     #notifies operator of each point deemed an outlier and removed and its associated "distance from median" value.
-    for i in removeindices:
-        print("removed! z-difference: " + str(diffs[i]))
+    for i in mask:
+        print("removed! z-difference: " + str(abs(z_med - z_vals[i])))
 
     #notifies operator if there are no outliers in dataset (no points removed).
-    if len(removeindices) == 0:
+    if len(mask) == 0:
         print("woah! no outliers to remove. \nmoving on...")
     
-    removed = dataframe.drop(index=removeindices)
+    removed = dataframe.drop(index=mask)
     return removed
 
 #its really, unironically that shrimple. 
@@ -206,11 +184,17 @@ def analyzeFile(plaintext, fileroot):
     print("getting data...")
     data = reformatString(plaintext)
 
+    #print(data)
+
+    #print("length of data before outliers: " + str(len(data)))
+
         #if the "remove outliers" box is checked, the data will be scanned for outliers and the outlier points will be removed. 
         #the exact process is of questionable validity, but it works. 
     if zMinimum.get():
         data = minimumZ_val(data)
     data = data.to_numpy(dtype=float)
+
+    #print("length of data after outliers: " + str(len(data)))
 
     #the code will then analyze the 3-d coordinates through sorting, visualization, and exporting.
     print("analyzing, doo de doo dooo~")
@@ -220,18 +204,14 @@ def analyzeFile(plaintext, fileroot):
     #https://scikit-spatial.readthedocs.io/en/stable/api_reference/Plane/methods/skspatial.objects.Plane.best_fit.html
     p = Points(data)
     if defect.get():
-        basePoint = []
-        checker = False
-        for i in data:
-            if abs(i[0]) < 0.001 and abs(i[1]) < 0.001:
-                basePoint = i
-                checker = True
-        if checker == False:
-            print("Central point error! Please make sure that you are inputting defect matrix data. ")
-            exit()
-        vec = ''.join(c for c in norm.get() if c.isdigit() or c==' ' or c=='.' or c=='e' or c=='-' or c=="+")
-        vector = vec.split()
-        vector = [float(i) for i in vector]
+        baseCandidates = [i for i in data if abs(i[0]) < 0.001 and abs(i[1]) < 0.001]
+        basePoint = baseCandidates[0]
+
+        nonDigitNumerical = [' ', '.', 'e', 'E', '-', '+']
+        normal = norm.get()[norm.get().find("["):]
+        vec = ''.join(c for c in normal if c.isdigit() or c in nonDigitNumerical)
+        vector = [float(i) for i in vec.split()]
+
         plane = Plane(point = basePoint, normal=vector)
     else:
         plane = Plane.best_fit(p)
@@ -382,43 +362,6 @@ def to_CSV_whileLoop(data, fileroot):
     #outwards notifications of the method finishing
     print("CSV data holds " + str(len(data)) + " points. ")
     print("CSV data saved to " + file + "\nnext...")
-
-#this does the same thing as to_CSV_whileLoop but using recursive functions. IMO the while loop version is a bit more elegant. 
-def to_CSV_recursive(data, fileroot):
-    file = fileroot + "/offsets.csv"
-
-    array = []
-    y_vals = data[:,1]
-    z_vals = data[:,2]
-    array = rowify(y_vals, z_vals, array)
-    np.transpose(array)
-
-    #converting the grid into saveable file format.
-    csv = pd.DataFrame(array)
-    csv.to_csv(file)
-
-    #outwards notifications of the method finishing
-    print("CSV data holds " + str(len(data)) + " points. ")
-    print("CSV data saved to " + file + "\nnext...")
-
-def rowify(y_vals, z_vals, array):
-    if min(y_vals) == y_vals[len(y_vals)-1]:
-        array.append(z_vals)
-        return array
-    row = []
-    temp, index = 1000, 0
-    while y_vals[index] < temp:
-        z_val = round(z_vals[index], 6)
-        if abs(z_val) > 75/1000:
-            z_val = 'ERROR: ' + str(z_val)
-        row.append(z_val)
-        temp = abs(y_vals[index])
-        index += 1
-    array.append(row)
-    rem_y = np.delete(y_vals, range(0,index))
-    rem_z = np.delete(z_vals, range(0,index))
-    array = rowify(rem_y, rem_z, array)
-    return array
 
 #creates a .txt file containing values useful for an overview of the stave.
 def text_label(data, plane, peakPoints, fileroot):
