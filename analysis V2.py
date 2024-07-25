@@ -459,8 +459,6 @@ def heatmap(data, ePoints, pPoints, fileroot):
     if len(ePoints) > 0:
         scatter(ePoints, ax, color='red', label="eccentricities")
 
-    #print(pPoints)
-
     scatter(pPoints, ax, color='orange', label="peaks")
 
     #this bit creates text labels notating the height of both max and min points
